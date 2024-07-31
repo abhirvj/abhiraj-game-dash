@@ -14,7 +14,7 @@ const PASTEL_COLORS = [
 ];
 
 const SHAPES = ['rect', 'circle', 'triangle'];
-let game, player, level, obstacles, score, gameOver, startTime, retryButtonRect;
+let player, level, obstacles, score, gameOver, startTime, topObstacle, levelNum;
 
 document.getElementById('continueButton').addEventListener('click', startGame);
 document.getElementById('retryButton').addEventListener('click', resetGame);
@@ -26,18 +26,21 @@ function startGame() {
 }
 
 function initGame() {
+    levelNum = 0;
     score = 0;
     gameOver = false;
     startTime = Date.now();
     player = new Player();
-    level = new Level(0);
+    level = new Level(levelNum);
     obstacles = [];
     generateObstacles();
+    topObstacle = { x: 0, y: 0, width: WIDTH, height: 10 };
 }
 
 function resetGame() {
     document.getElementById('retryScreen').classList.add('hidden');
     initGame();
+    gameLoop();
 }
 
 class Player {
@@ -48,6 +51,7 @@ class Player {
         this.velY = 0;
         this.shape = SHAPES[Math.floor(Math.random() * SHAPES.length)];
         this.rotation = 0;
+        this.rotationSpeed = levelNum * 2;
     }
 
     update() {
@@ -57,7 +61,15 @@ class Player {
             this.y = HEIGHT - this.size;
             this.velY = 0;
         }
-        this.rotation += 2;
+        this.rotation += this.rotationSpeed;
+    }
+
+    jump() {
+        this.velY = -15;
+    }
+
+    changeShape() {
+        this.shape = SHAPES[Math.floor(Math.random() * SHAPES.length)];
     }
 
     draw() {
@@ -81,10 +93,6 @@ class Player {
             ctx.fill();
         }
         ctx.restore();
-    }
-
-    jump() {
-        this.velY = -15;
     }
 }
 
@@ -113,8 +121,10 @@ class Level {
 }
 
 function generateObstacles() {
-    for (let i = 0; i < 10; i++) {
-        let x = WIDTH + i * 300;
+    let numObstacles = 10 + levelNum;
+    let spacing = Math.max(300, 500 - levelNum * 20);
+    for (let i = 0; i < numObstacles; i++) {
+        let x = WIDTH + i * spacing;
         let y = Math.random() * (HEIGHT - 200) + 200;
         let width = Math.random() * 50 + 20;
         let height = HEIGHT - y;
@@ -127,16 +137,20 @@ function gameLoop() {
         document.getElementById('retryScreen').classList.remove('hidden');
         return;
     }
+
     ctx.fillStyle = PASTEL_COLORS[0];
     ctx.fillRect(0, 0, WIDTH, HEIGHT);
 
     player.update();
     player.draw();
 
+    ctx.fillStyle = 'red';
+    ctx.fillRect(topObstacle.x, topObstacle.y, topObstacle.width, topObstacle.height);
+
     obstacles.forEach((obs) => {
         obs.update();
         obs.draw();
-        if (collisionDetection(player, obs)) {
+        if (collisionDetection(player, obs) || collisionDetection(player, topObstacle)) {
             gameOver = true;
         }
     });
@@ -164,6 +178,7 @@ function drawHUD() {
     ctx.fillText(`Score: ${score}`, 10, 20);
     let elapsedTime = Math.floor((Date.now() - startTime) / 1000);
     ctx.fillText(`Time: ${elapsedTime}`, WIDTH - 100, 20);
+    ctx.fillText(`Level: ${levelNum + 1}`, 10, 50);
 }
 
 window.addEventListener('keydown', (e) => {
